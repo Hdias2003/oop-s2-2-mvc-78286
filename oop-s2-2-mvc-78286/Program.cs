@@ -83,7 +83,10 @@ try
     {
         var services = scope.ServiceProvider;
         var context = services.GetRequiredService<ApplicationDbContext>();
-        DbInitializer.Seed(context);
+
+        // FIX: Pass both the 'services' and 'context' arguments
+        // Use .Wait() because the Seed method is likely defined as an 'async Task'
+        DbInitializer.Seed(services, context).Wait();
     }
 
     app.Run();
