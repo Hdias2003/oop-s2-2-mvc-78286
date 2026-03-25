@@ -1,0 +1,64 @@
+﻿@model oop_s2_2_mvc_78286.Models.ViewModels.DashboardViewModel
+
+<h2>Management Dashboard</h2>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white p-3">
+            <h3>@Model.TotalInspectionsThisMonth</h3>
+            <p>Inspections This Month</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white p-3">
+            <h3>@Model.FailedInspectionsThisMonth</h3>
+            <p>Failed This Month</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning p-3">
+            <h3>@Model.OverdueFollowUpsCount</h3>
+            <p>Overdue Follow-ups</p>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="row mt-4 g-3">
+    <div class="col-md-4">
+        <input type="text" name="town" class="form-control" placeholder="Filter by Town..." value="@Model.SelectedTown" />
+    </div>
+    <div class="col-md-4">
+        <select name="risk" class="form-select">
+            <option value="">All Risk Levels</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-secondary">Filter</button>
+    </div>
+</form>
+
+<h4 class="mt-5">Overdue Action Items</h4>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Premises</th>
+            <th>Due Date</th>
+            <th>Town</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.OverdueFollowUps)
+        {
+            <tr>
+                <td>@item.Inspection.Premises.Name</td>
+                <td class="text-danger">@item.DueDate.ToShortDateString()</td>
+                <td>@item.Inspection.Premises.Town</td>
+                <td>@item.Status</td>
+            </tr>
+        }
+    </tbody>
+</table>
