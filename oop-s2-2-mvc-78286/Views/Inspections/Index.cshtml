@@ -14,9 +14,7 @@
         <a asp-action="Create" class="btn btn-primary">Record New Inspection</a>
     </p>
 }
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
+
 <table class="table">
     <thead>
         <tr>
@@ -52,6 +50,9 @@
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Notes)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Premises.Name)
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Premises.Id)
