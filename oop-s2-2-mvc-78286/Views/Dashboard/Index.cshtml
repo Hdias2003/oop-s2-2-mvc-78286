@@ -4,21 +4,21 @@
 
 <div class="row mt-4">
     <div class="col-md-4">
-        <div class="card bg-primary text-white p-3">
+        <div class="card bg-primary text-white p-3 shadow-sm">
             <h3>@Model.TotalInspectionsThisMonth</h3>
-            <p>Inspections This Month</p>
+            <p class="mb-0">Inspections This Month</p>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-danger text-white p-3">
+        <div class="card bg-danger text-white p-3 shadow-sm">
             <h3>@Model.FailedInspectionsThisMonth</h3>
-            <p>Failed This Month</p>
+            <p class="mb-0">Failed This Month</p>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-warning p-3">
+        <div class="card bg-warning p-3 shadow-sm">
             <h3>@Model.OverdueFollowUpsCount</h3>
-            <p>Overdue Follow-ups</p>
+            <p class="mb-0">Overdue Follow-ups</p>
         </div>
     </div>
 </div>
@@ -29,36 +29,66 @@
     </div>
     <div class="col-md-4">
         <select name="risk" class="form-select">
-            <option value="">All Risk Levels</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <button type="submit" class="btn btn-secondary">Filter</button>
-    </div>
-</form>
+            <!- Logic to keep the selected option active -->
+                <option value="">All Risk Levels</option>
+                <option value="Low" selected="@(Model.SelectedRisk?.ToString() == "Low")">Low</option>
+                <option value="Medium" selected="@(Model.SelectedRisk?.ToString() == "Medium")">Medium</option>
+                <option value="High" selected="@(Model.SelectedRisk?.ToString() == "High")">High</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-secondary w-100">Filter</button>
+            <a asp-action="Index" class="btn btn-link btn-sm w-100 mt-1">Clear Filters</a>
+        </div>
+    </form>
 
-<h4 class="mt-5">Overdue Action Items</h4>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Premises</th>
-            <th>Due Date</th>
-            <th>Town</th>
-            <th>Status</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.OverdueFollowUps)
-        {
-            <tr>
-                <td>@item.Inspection.Premises.Name</td>
-                <td class="text-danger">@item.DueDate.ToShortDateString()</td>
-                <td>@item.Inspection.Premises.Town</td>
-                <td>@item.Status</td>
-            </tr>
-        }
-    </tbody>
-</table>
+    <h4 class="mt-5 text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Overdue Action Items</h4>
+    <div class="card shadow-sm">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Premises</th>
+                    <th>Risk Rating</th>
+                    <th>Due Date</th>
+                    <th>Town</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.OverdueFollowUps.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted p-4">No overdue follow-ups found.</td>
+                    </tr>
+                }
+                @foreach (var item in Model.OverdueFollowUps)
+                {
+                    <tr>
+                        <td><strong>@item.Inspection.Premises.Name</strong></td>
+                        <td>
+                            @* Color-coded Risk Badges *@
+                            @{
+                                var riskClass = item.Inspection.Premises.RiskRating.ToString() switch
+                                {
+                                    "High" => "bg-danger",
+                                    "Medium" => "bg-warning text-dark",
+                                    "Low" => "bg-success",
+                                    _ => "bg-secondary"
+                                };
+                            }
+                            <span class="badge @riskClass">@item.Inspection.Premises.RiskRating</span>
+                        </td>
+                        <td class="text-danger fw-bold">@item.DueDate.ToShortDateString()</td>
+                        <td>@item.Inspection.Premises.Town</td>
+                        <td>
+                            <span class="badge border text-dark">@item.Status</span>
+                        </td>
+                        <td>
+                            <a asp-controller="FollowUps" asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Resolve</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>

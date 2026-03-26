@@ -1,71 +1,89 @@
 ﻿using FoodSafety.Domain.Models;
 using FoodSafety.Domain.Models.ViewModels;
+using oop_s2_2_mvc_78286.Data; // Ensure this matches your context namespace
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {
-    // Restricts access to all roles defined in the assessment
-    // This ensures only authorized personnel can see the aggregated stats
     [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
     public class DashboardController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<DashboardController> _logger;
 
-        public DashboardController(ApplicationDbContext context)
+        // Injected Logger for Serilog events
+        public DashboardController(ApplicationDbContext context, ILogger<DashboardController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
-        // The Index action handles the logic for the summary cards and the filtered overdue table
         public async Task<IActionResult> Index(string town, string risk)
         {
-            // Time variables for "This Month" logic
-            var today = DateTime.Today;
-            var firstOfMonth = new DateTime(today.Year, today.Month, 1);
-
-            // 1. Base query for follow-ups
-            // Includes navigational properties to access Premises data from the FollowUp entity
-            var overdueQuery = _context.FollowUps
-                .Include(f => f.Inspection)
-                .ThenInclude(i => i.Premises)
-                .Where(f => f.Status == "Open" && f.DueDate < today);
-
-            // 2. Apply Filters based on User Input (Town and/or RiskRating)
-            if (!string.IsNullOrEmpty(town))
+            try
             {
-                overdueQuery = overdueQuery.Where(f => f.Inspection.Premises.Town == town);
+                var today = DateTime.Today;
+                var firstOfMonth = new DateTime(today.Year, today.Month, 1);
+
+                // LOG 9: Audit - Tracking dashboard access and filter parameters
+                _logger.LogInformation("Dashboard requested. Filters - Town: {Town}, Risk: {Risk}",
+                    town ?? "None", risk ?? "None");
+
+                // 1. Base query with essential Includes to prevent NullReference on Premises
+                var overdueQuery = _context.FollowUps
+                    .Include(f => f.Inspection)
+                        .ThenInclude(i => i.Premises)
+                    .Where(f => f.Status == "Open" && f.DueDate < today);
+
+                // 2. Apply Filters
+                if (!string.IsNullOrEmpty(town))
+                {
+                    overdueQuery = overdueQuery.Where(f => f.Inspection.Premises.Town.Contains(town));
+                }
+
+                RiskLevel? selectedRiskEnum = null;
+                if (Enum.TryParse<RiskLevel>(risk, out var riskEnum))
+                {
+                    overdueQuery = overdueQuery.Where(f => f.Inspection.Premises.RiskRating == riskEnum);
+                    selectedRiskEnum = riskEnum;
+                }
+
+                // 3. Execute query once
+                var overdueList = await overdueQuery.ToListAsync();
+
+                // LOG 10: Performance/Audit - Tracking how many items are being flagged
+                if (overdueList.Count > 5)
+                {
+                    _logger.LogWarning("High volume of overdue action items detected: {Count} items.", overdueList.Count);
+                }
+
+                var viewModel = new DashboardViewModel
+                {
+                    TotalInspectionsThisMonth = await _context.Inspections
+                        .CountAsync(i => i.InspectionDate >= firstOfMonth),
+
+                    FailedInspectionsThisMonth = await _context.Inspections
+                        .CountAsync(i => i.InspectionDate >= firstOfMonth && i.Outcome == "Fail"),
+
+                    OverdueFollowUps = overdueList,
+                    OverdueFollowUpsCount = overdueList.Count,
+                    SelectedTown = town,
+                    SelectedRisk = selectedRiskEnum
+                };
+
+                return View(viewModel);
             }
-
-            // Attempts to parse the risk string into the RiskLevel Enum
-            if (Enum.TryParse<RiskLevel>(risk, out var riskEnum))
+            catch (Exception ex)
             {
-                overdueQuery = overdueQuery.Where(f => f.Inspection.Premises.RiskRating == riskEnum);
+                // LOG 11: Error - Capture dashboard failures for Serilog
+                _logger.LogError(ex, "Failed to load Dashboard data.");
+
+                // Redirect to Home/Error with a specific message
+                return RedirectToAction("Error", "Home");
             }
-
-            // 3. Build the ViewModel with Aggregations for the View
-            var viewModel = new DashboardViewModel
-            {
-                // Aggregation: Count all inspections conducted since the 1st of the current month
-                TotalInspectionsThisMonth = await _context.Inspections
-                    .CountAsync(i => i.InspectionDate >= firstOfMonth),
-
-                // Aggregation: Count only failed inspections for the current month
-                FailedInspectionsThisMonth = await _context.Inspections
-                    .CountAsync(i => i.InspectionDate >= firstOfMonth && i.Outcome == "Fail"),
-
-                // List: Returns the specific follow-up records that match the 'Overdue' criteria and filters
-                OverdueFollowUps = await overdueQuery.ToListAsync(),
-
-                // Aggregation: The count of the filtered overdue list
-                OverdueFollowUpsCount = await overdueQuery.CountAsync(),
-
-                SelectedTown = town,
-                SelectedRisk = riskEnum
-            };
-
-            return View(viewModel);
         }
     }
 }

@@ -60,5 +60,19 @@ namespace oop_s2_2_mvc_78286.Controllers
                 Message = userFriendlyMessage // This property must exist in your ErrorViewModel
             });
         }
+            public IActionResult Error()
+        {
+            var feature = HttpContext.Features.Get<IExceptionHandlerPathFeature>();
+
+            // LOG 8: System - Catching errors that bypassed controllers
+            _logger.LogCritical("System-level exception at {Path}. Message: {Msg}",
+                feature?.Path, feature?.Error.Message);
+
+            return View(new ErrorViewModel
+            {
+                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                Message = feature?.Error.Message ?? "Unknown Error"
+            });
+        }
     }
-}
+    }

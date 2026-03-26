@@ -27,20 +27,16 @@ namespace oop_s2_2_mvc_78286.Controllers
         }
 
         // GET: Premises/Details/5
-        [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
+            // FIX 2: You MUST use .Include(p => p.Inspections) here
             var premises = await _context.Premises
+                .Include(p => p.Inspections)
                 .FirstOrDefaultAsync(m => m.Id == id);
-            if (premises == null)
-            {
-                return NotFound();
-            }
+
+            if (premises == null) return NotFound();
 
             return View(premises);
         }

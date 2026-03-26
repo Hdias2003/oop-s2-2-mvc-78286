@@ -29,19 +29,21 @@ namespace oop_s2_2_mvc_78286.Controllers
             return View(await applicationDbContext.ToListAsync());
         }
 
-        // GET: Inspections/Details/5
-        [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            var inspection = await _context.Inspections
-                .Include(i => i.Premises)
+            // Use .Include to pull the related inspection records from the database
+            var premises = await _context.Premises
+                .Include(p => p.Inspections)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
-            if (inspection == null) return NotFound();
+            if (premises == null) return NotFound();
 
-            return View(inspection);
+            // LOG 11: Trace - Viewing premises history
+            _logger.LogInformation("Viewing details and inspection history for Premises ID {Id}", id);
+
+            return View(premises);
         }
 
         // GET: Inspections/Create

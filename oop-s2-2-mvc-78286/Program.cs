@@ -1,3 +1,4 @@
+using FoodSafety.Web.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -93,19 +94,26 @@ try
         try
         {
             var context = services.GetRequiredService<ApplicationDbContext>();
-            // Ensures DB is deleted/recreated to apply your new Not-Null constraints
-            // context.Database.EnsureDeleted(); // Uncomment to reset DB
+
+            // Fix 1: Get Identity services needed for the users in your seed
+            var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+            var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+
+            // Ensures DB is migrated
             context.Database.Migrate();
 
-            DbInitializer.Seed(services, context).Wait();
+            // Fix 2: Change 'DbInitializer' to 'DataInitializer'
+            // Fix 3: Use 'await' instead of '.Wait()' for better async handling
+            await DataInitializer.SeedAsync(context, userManager, roleManager);
+
             Log.Information("Database Seeding completed successfully.");
         }
         catch (Exception ex)
         {
+            // This will now capture seeding errors in Serilog
             Log.Error(ex, "An error occurred during database seeding.");
         }
     }
-
     app.Run();
 }
 catch (Exception ex)
