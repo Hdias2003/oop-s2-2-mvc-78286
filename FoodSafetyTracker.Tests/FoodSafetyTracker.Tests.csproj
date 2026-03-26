@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\oop-s2-2-mvc-78286\oop-s2-2-mvc-78286.csproj" />
+    <ProjectReference Include="..\FoodSafety.Domain\FoodSafety.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

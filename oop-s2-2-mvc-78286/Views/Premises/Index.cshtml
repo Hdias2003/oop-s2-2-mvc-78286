@@ -1,11 +1,11 @@
-﻿@model IEnumerable<oop_s2_2_mvc_78286.Models.Premises>
+﻿@model IEnumerable<FoodSafety.Domain.Models.Premises>
 
 @{
     ViewData["Title"] = "Index";
 }
 
 <h1>Index</h1>
-@using oop_s2_2_mvc_78286.Models
+@using FoodSafety.Domain.Models
 
 @if (User.IsInRole(UserRoles.Inspector) || User.IsInRole(UserRoles.Admin))
 {

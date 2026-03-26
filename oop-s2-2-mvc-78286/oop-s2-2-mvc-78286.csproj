@@ -33,4 +33,9 @@
     <Folder Include="Logs\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\FoodSafety.Domain\FoodSafety.Domain.csproj" />
+    <ProjectReference Include="..\FoodSafetyTracker.Tests\FoodSafetyTracker.Tests.csproj" />
+  </ItemGroup>
+
 </Project>

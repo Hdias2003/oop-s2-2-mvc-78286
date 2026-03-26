@@ -1,11 +1,11 @@
-﻿@model IEnumerable<oop_s2_2_mvc_78286.Models.Inspection>
+﻿@model IEnumerable<FoodSafety.Domain.Models.Inspection>
 
 @{
     ViewData["Title"] = "Index";
 }
 
 <h1>Index</h1>
-@using oop_s2_2_mvc_78286.Models
+@using FoodSafety.Domain.Models
 
 @* Restrict the 'Create' button to Admins and Inspectors only *@
 @if (User.IsInRole(UserRoles.Inspector) || User.IsInRole(UserRoles.Admin))

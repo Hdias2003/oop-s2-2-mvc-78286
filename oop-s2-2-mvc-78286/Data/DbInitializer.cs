@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using oop_s2_2_mvc_78286.Models;
+using FoodSafety.Domain.Models;
+using FoodSafety.Domain.Models.ViewModels;
 
 namespace oop_s2_2_mvc_78286.Data
 {

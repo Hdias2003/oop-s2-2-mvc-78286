@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using oop_s2_2_mvc_78286.Models;
+using FoodSafety.Domain.Models;
+using FoodSafety.Domain.Models.ViewModels;
 using System.Diagnostics;
 
 namespace oop_s2_2_mvc_78286.Controllers

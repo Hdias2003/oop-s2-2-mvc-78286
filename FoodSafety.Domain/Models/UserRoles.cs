@@ -1,4 +1,4 @@
-﻿namespace oop_s2_2_mvc_78286.Models
+﻿namespace FoodSafety.Domain.Models
 {
     // Standardized role names to be used in Authorize attributes
     public static class UserRoles
