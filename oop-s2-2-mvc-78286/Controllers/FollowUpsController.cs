@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using FoodSafety.Domain.Models;
+using FoodSafety.Domain.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization; // Required for Role-Based Access 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization; // Required for Role-Based Access 
-using FoodSafety.Domain.Models;
-using FoodSafety.Domain.Models.ViewModels;
 using oop_s2_2_mvc_78286.Data;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {
@@ -52,8 +53,39 @@ namespace oop_s2_2_mvc_78286.Controllers
         // GET: FollowUps/Create
         public IActionResult Create()
         {
-            ViewData["InspectionId"] = new SelectList(_context.Inspections, "Id", "Id");
+            // Load Inspections including Premises so we can show the name in the dropdown
+            var inspections = _context.Inspections.Include(i => i.Premises).ToList();
+
+            // We format the Display Text so the JavaScript in the View can parse it
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+                Id = i.Id,
+                DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
+            }), "Id", "DisplayText");
+
             return View();
+        }
+
+        // --- NEW: GET: FollowUps/Edit/5
+        // Added because the Edit view requires a GET action that loads the model and populates the dropdown.
+        [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null) return NotFound();
+
+            var followUp = await _context.FollowUps
+                .Include(f => f.Inspection)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            if (followUp == null) return NotFound();
+
+            // Populate dropdown with the same formatted display text used by Create
+            var inspections = _context.Inspections.Include(i => i.Premises).ToList();
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+                Id = i.Id,
+                DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
+            }), "Id", "DisplayText", followUp.InspectionId);
+
+            return View(followUp);
         }
 
         // POST: FollowUps/Create
@@ -61,55 +93,42 @@ namespace oop_s2_2_mvc_78286.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,InspectionId,DueDate,Status,ClosedDate")] FollowUp followUp)
         {
-            if (ModelState.IsValid)
+            try
             {
-                try
+                if (ModelState.IsValid)
                 {
-                    // Load related inspection to validate business rules (due date vs inspection date)
                     var inspection = await _context.Inspections.FindAsync(followUp.InspectionId);
-                    if (inspection != null && followUp.DueDate < inspection.InspectionDate)
+
+                    // STRICT SPEC: Due Date must be after Inspection Date
+                    if (inspection != null && followUp.DueDate <= inspection.InspectionDate)
                     {
-                        _logger.LogWarning("Business Rule: FollowUp due date {DueDate} is before Inspection date {InspectionDate} for Inspection {InspectionId}",
-                            followUp.DueDate, inspection.InspectionDate, followUp.InspectionId);
-
-                        ModelState.AddModelError(nameof(followUp.DueDate), "Due date cannot be before the inspection date.");
-                        ViewData["InspectionId"] = new SelectList(_context.Inspections, "Id", "Id", followUp.InspectionId);
-                        return View(followUp);
+                        _logger.LogWarning("Validation Failure: DueDate {Due} is not after InspectionDate {Insp}",
+                            followUp.DueDate, inspection.InspectionDate);
+                        ModelState.AddModelError("DueDate", $"Due Date must be after the Inspection Date ({inspection.InspectionDate.ToShortDateString()})");
                     }
-
-                    // Logic to warn if a due date is set in the past upon creation
-                    if (followUp.DueDate < DateTime.Now && followUp.Status == "Open")
+                    else
                     {
-                        _logger.LogWarning("Creating an immediate overdue FollowUp for Inspection {Id}", followUp.InspectionId);
+                        _context.Add(followUp);
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Follow-up created for Inspection {Id}", followUp.InspectionId);
+                        return RedirectToAction(nameof(Index));
                     }
-
-                    _context.Add(followUp);
-                    await _context.SaveChangesAsync();
-
-                    _logger.LogInformation("Follow-up task created for Inspection ID: {InspectionId}", followUp.InspectionId);
-
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (Exception ex)
-                {
-                    // Error Log with exception details
-                    _logger.LogError(ex, "Error occurred while creating follow-up for Inspection {InspectionId}", followUp.InspectionId);
-                    return View("Error");
                 }
             }
-            ViewData["InspectionId"] = new SelectList(_context.Inspections, "Id", "Id", followUp.InspectionId);
-            return View(followUp);
-        }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating follow-up");
+                // REQUIREMENT: Redirect to Global Error Page
+                return RedirectToAction("Error", "Home");
+            }
 
-        // GET: FollowUps/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null) return NotFound();
+            // If we reach here, re-populate the dropdown with the same formatting
+            var inspections = _context.Inspections.Include(i => i.Premises).ToList();
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+                Id = i.Id,
+                DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
+            }), "Id", "DisplayText", followUp.InspectionId);
 
-            var followUp = await _context.FollowUps.FindAsync(id);
-            if (followUp == null) return NotFound();
-
-            ViewData["InspectionId"] = new SelectList(_context.Inspections, "Id", "Id", followUp.InspectionId);
             return View(followUp);
         }
 
@@ -120,32 +139,55 @@ namespace oop_s2_2_mvc_78286.Controllers
         {
             if (id != followUp.Id) return NotFound();
 
-            if (ModelState.IsValid)
+            try
             {
-                try
+                // 1. Validate the model (this triggers IValidatableObject logic)
+                if (ModelState.IsValid)
                 {
-                    // Business Logic: If status is set to Closed and no date provided, auto-fill it
-                    if (followUp.Status == "Closed" && followUp.ClosedDate == null)
+                    // 2. Fetch inspection to verify business rules
+                    var inspection = await _context.Inspections.FindAsync(followUp.InspectionId);
+
+                    if (inspection != null && followUp.DueDate <= inspection.InspectionDate)
                     {
-                        followUp.ClosedDate = DateTime.Now;
-                        _logger.LogInformation("Follow-up {Id} automatically timestamped as closed.", followUp.Id);
+                        ModelState.AddModelError("DueDate", $"Due Date must be after the Inspection Date ({inspection.InspectionDate.ToShortDateString()})");
                     }
-
-                    _context.Update(followUp);
-                    await _context.SaveChangesAsync();
-
-                    _logger.LogInformation("Follow-up {Id} updated successfully.", followUp.Id);
+                    else
+                    {
+                        _context.Update(followUp);
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Follow-up {Id} updated successfully.", followUp.Id);
+                        return RedirectToAction(nameof(Index));
+                    }
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!FollowUpExists(followUp.Id)) return NotFound();
-                    else throw;
-                }
-                return RedirectToAction(nameof(Index));
             }
-            ViewData["InspectionId"] = new SelectList(_context.Inspections, "Id", "Id", followUp.InspectionId);
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!FollowUpExists(followUp.Id)) return NotFound();
+                else throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating follow-up {Id}", id);
+                // Instead of RedirectToAction, return the Error view directly WITH a new model
+                // This prevents the NullReferenceException in Error.cshtml
+                return View("Error", new ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = ex.Message
+                });
+            }
+
+            // --- IMPORTANT: RE-POPULATE DROPDOWN WITH PREMISES ---
+            // If validation fails, we must provide the same formatted text used in GET Edit
+            var inspections = _context.Inspections.Include(i => i.Premises).ToList();
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+                Id = i.Id,
+                DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
+            }), "Id", "DisplayText", followUp.InspectionId);
+
             return View(followUp);
         }
+        
 
         // GET: FollowUps/Delete/5
         public async Task<IActionResult> Delete(int? id)

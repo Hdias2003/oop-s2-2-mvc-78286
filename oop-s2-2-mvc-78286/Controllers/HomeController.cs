@@ -1,9 +1,9 @@
-using Microsoft.AspNetCore.Mvc;
 using FoodSafety.Domain.Models;
-using FoodSafety.Domain.Models.ViewModels;
-using System.Diagnostics;
-using Microsoft.AspNetCore.Diagnostics;
+using FoodSafety.Domain.Models.ViewModels; // Ensure this points to your actual ViewModel namespace
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {
@@ -33,12 +33,15 @@ namespace oop_s2_2_mvc_78286.Controllers
             // 1. Capture the exception details from the platform
             var exceptionHandlerPathFeature = HttpContext.Features.Get<IExceptionHandlerPathFeature>();
 
+            // Default generic message
+            string userFriendlyMessage = "An unexpected error occurred while processing your request.";
+
             // 2. Determine if this was a specific Status Code error (like 404)
             if (id == 404)
             {
+                userFriendlyMessage = "The page you are looking for does not exist (404).";
                 _logger.LogWarning("404 Error: User attempted to access non-existent path: {Path}",
                     HttpContext.Request.Path);
-                ViewData["ErrorMessage"] = "The page you are looking for does not exist.";
             }
             else if (exceptionHandlerPathFeature != null)
             {
@@ -47,12 +50,15 @@ namespace oop_s2_2_mvc_78286.Controllers
                     "Unhandled exception occurred at {Path}. Error: {Message}",
                     exceptionHandlerPathFeature.Path, exceptionHandlerPathFeature.Error.Message);
 
-                ViewData["ErrorMessage"] = "A server error occurred. Our team has been notified.";
+                // Use the actual exception message for the user to see in the alert box
+                userFriendlyMessage = exceptionHandlerPathFeature.Error.Message;
             }
 
+            // 4. Return the View with the populated Model
             return View(new ErrorViewModel
             {
-                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier
+                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                Message = userFriendlyMessage // This property must exist in your ErrorViewModel
             });
         }
     }

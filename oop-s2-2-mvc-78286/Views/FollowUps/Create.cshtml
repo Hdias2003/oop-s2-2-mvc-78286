@@ -5,40 +5,119 @@
 }
 
 <h1>Create</h1>
-
 <h4>FollowUp</h4>
 <hr />
 <div class="row">
     <div class="col-md-4">
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="InspectionId" class="control-label"></label>
-                <select asp-for="InspectionId" class ="form-control" asp-items="ViewBag.InspectionId"></select>
+            
+            <div class="form-group mb-3">
+                <label asp-for="InspectionId" class="control-label">Select Inspection</label>
+                <select asp-for="InspectionId" id="InspectionSelect" class="form-control" asp-items="ViewBag.InspectionId">
+                    <option value="">-- Choose Inspection --</option>
+                </select>
             </div>
-            <div class="form-group">
+
+            <div id="InspectionInfo" class="alert alert-info d-none mb-3">
+                <strong>Premises:</strong> <span id="infoPremise"></span><br />
+                <strong>Inspection Date:</strong> <span id="infoDate"></span>
+            </div>
+
+            <div class="form-group mb-3">
                 <label asp-for="DueDate" class="control-label"></label>
-                <input asp-for="DueDate" class="form-control" />
+                <input asp-for="DueDate" type="date" class="form-control" />
                 <span asp-validation-for="DueDate" class="text-danger"></span>
             </div>
-            <div class="form-group">
+
+            <div class="form-group mb-3">
                 <label asp-for="Status" class="control-label"></label>
-                <input asp-for="Status" class="form-control" />
+                <select asp-for="Status" id="StatusSelect" class="form-control">
+                    <option value="Open">Open</option>
+                    <option value="Closed">Closed</option>
+                </select>
                 <span asp-validation-for="Status" class="text-danger"></span>
             </div>
-            <div class="form-group">
+
+            <div class="form-group mb-3" id="ClosedDateGroup">
                 <label asp-for="ClosedDate" class="control-label"></label>
-                <input asp-for="ClosedDate" class="form-control" />
+                <input asp-for="ClosedDate" id="ClosedDateInput" type="date" class="form-control" />
                 <span asp-validation-for="ClosedDate" class="text-danger"></span>
             </div>
-            <div class="form-group">
+
+            <div class="form-group mt-4">
                 <input type="submit" value="Create" class="btn btn-primary" />
             </div>
         </form>
     </div>
 </div>
 
-<div>
+<div class="mt-3">
     <a asp-action="Index">Back to List</a>
 </div>
 
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // --- 1. Logic for Status and Closed Date Requirements ---
+        function toggleClosedDate() {
+            const statusSelect = document.getElementById('StatusSelect');
+            const dateInput = document.getElementById('ClosedDateInput');
+            const group = document.getElementById('ClosedDateGroup');
+
+            if (statusSelect && statusSelect.value === 'Closed') {
+                group.style.opacity = "1";
+                dateInput.required = true;
+                if (!dateInput.value) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+            } else if (statusSelect) {
+                dateInput.value = "";
+                dateInput.required = false;
+                group.style.opacity = "0.5";
+            }
+        }
+
+        // --- 2. Logic for Displaying Associated Inspection Info ---
+        function updateInspectionInfo() {
+            const select = document.getElementById('InspectionSelect');
+            const infoBox = document.getElementById('InspectionInfo');
+            
+            if (select && select.value && select.selectedIndex !== -1) {
+                const selectedText = select.options[select.selectedIndex].text;
+                try {
+                    // Parsing text format: "ID: 1 - Premise Name (Date)"
+                    const parts = selectedText.split(' - ');
+                    const premiseAndDate = parts[1].split(' (');
+                    
+                    document.getElementById('infoPremise').innerText = premiseAndDate[0];
+                    document.getElementById('infoDate').innerText = premiseAndDate[1].replace(')', '');
+                    infoBox.classList.remove('d-none');
+                } catch (e) {
+                    infoBox.classList.add('d-none');
+                }
+            } else if (infoBox) {
+                infoBox.classList.add('d-none');
+            }
+        }
+
+        // --- 3. Initialize Event Listeners ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusEl = document.getElementById('StatusSelect');
+            const inspectEl = document.getElementById('InspectionSelect');
+
+            if (statusEl) {
+                statusEl.addEventListener('change', toggleClosedDate);
+                toggleClosedDate(); // Sync UI on load
+            }
+
+            if (inspectEl) {
+                inspectEl.addEventListener('change', updateInspectionInfo);
+                updateInspectionInfo(); // Sync UI on load
+            }
+        });
+    </script>
+}
