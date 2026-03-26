@@ -63,18 +63,39 @@ namespace oop_s2_2_mvc_78286.Controllers
         {
             if (ModelState.IsValid)
             {
-                // Logic to warn if a due date is set in the past upon creation
-                if (followUp.DueDate < DateTime.Now && followUp.Status == "Open")
+                try
                 {
-                    _logger.LogWarning("Creating an immediate overdue FollowUp for Inspection {Id}", followUp.InspectionId);
+                    // Load related inspection to validate business rules (due date vs inspection date)
+                    var inspection = await _context.Inspections.FindAsync(followUp.InspectionId);
+                    if (inspection != null && followUp.DueDate < inspection.InspectionDate)
+                    {
+                        _logger.LogWarning("Business Rule: FollowUp due date {DueDate} is before Inspection date {InspectionDate} for Inspection {InspectionId}",
+                            followUp.DueDate, inspection.InspectionDate, followUp.InspectionId);
+
+                        ModelState.AddModelError(nameof(followUp.DueDate), "Due date cannot be before the inspection date.");
+                        ViewData["InspectionId"] = new SelectList(_context.Inspections, "Id", "Id", followUp.InspectionId);
+                        return View(followUp);
+                    }
+
+                    // Logic to warn if a due date is set in the past upon creation
+                    if (followUp.DueDate < DateTime.Now && followUp.Status == "Open")
+                    {
+                        _logger.LogWarning("Creating an immediate overdue FollowUp for Inspection {Id}", followUp.InspectionId);
+                    }
+
+                    _context.Add(followUp);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation("Follow-up task created for Inspection ID: {InspectionId}", followUp.InspectionId);
+
+                    return RedirectToAction(nameof(Index));
                 }
-
-                _context.Add(followUp);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Follow-up task created for Inspection ID: {InspectionId}", followUp.InspectionId);
-
-                return RedirectToAction(nameof(Index));
+                catch (Exception ex)
+                {
+                    // Error Log with exception details
+                    _logger.LogError(ex, "Error occurred while creating follow-up for Inspection {InspectionId}", followUp.InspectionId);
+                    return View("Error");
+                }
             }
             ViewData["InspectionId"] = new SelectList(_context.Inspections, "Id", "Id", followUp.InspectionId);
             return View(followUp);

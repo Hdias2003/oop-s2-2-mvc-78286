@@ -1,4 +1,6 @@
-﻿
+﻿using System.Collections.Generic;
+using FoodSafety.Domain.Models;
+
 namespace FoodSafety.Domain.Models.ViewModels
 {
     public class DashboardViewModel

@@ -60,14 +60,13 @@ try
     app.UseHttpsRedirection();
     app.UseRouting();
 
-    // 6. AUTHENTICATION & AUTHORIZATION
-    // Order is important: Auth must happen before the Logging Middleware can see the user
+    // Authentication must run before we push UserName into the LogContext
     app.UseAuthentication();
-    app.UseAuthorization();
 
-    // 7. CUSTOM USER LOGGING MIDDLEWARE
-    // Injects the current UserName into the Serilog LogContext for every request
+    // Move the middleware here so it runs after authentication and before authorization
     app.UseMiddleware<UserLoggingMiddleware>();
+
+    app.UseAuthorization();
 
     app.MapStaticAssets();
     app.MapControllerRoute(
