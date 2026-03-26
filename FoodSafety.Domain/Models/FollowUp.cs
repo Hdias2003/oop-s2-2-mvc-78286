@@ -34,6 +34,7 @@ namespace FoodSafety.Domain.Models
         // Custom Validation Logic
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            // Rule 1: Must have a date if closed
             if (Status == "Closed" && !ClosedDate.HasValue)
             {
                 yield return new ValidationResult(
@@ -41,12 +42,24 @@ namespace FoodSafety.Domain.Models
                     new[] { nameof(ClosedDate) });
             }
 
+            // Rule 2: Open tasks shouldn't have a closed date
             if (Status == "Open" && ClosedDate.HasValue)
             {
                 yield return new ValidationResult(
                     "Closed Date should be empty if the status is still 'Open'.",
                     new[] { nameof(ClosedDate) });
             }
+
+            // NEW Rule 3: Closed Date must be after Due Date
+            if (Status == "Closed" && ClosedDate.HasValue && DueDate != default)
+            {
+                if (ClosedDate.Value < DueDate)
+                {
+                    yield return new ValidationResult(
+                        $"The Closed Date ({ClosedDate.Value.ToShortDateString()}) cannot be earlier than the Due Date ({DueDate.ToShortDateString()}).",
+                        new[] { nameof(ClosedDate) });
+                }
+            }
         }
     }
-}
+    }

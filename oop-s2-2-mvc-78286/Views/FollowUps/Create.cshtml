@@ -119,5 +119,34 @@
                 updateInspectionInfo(); // Sync UI on load
             }
         });
+                function toggleClosedDate() {
+            const status = document.getElementById('StatusSelect').value;
+            const dateInput = document.getElementById('ClosedDateInput');
+            const dueDateInput = document.querySelector('input[name="DueDate"]');
+            const group = document.getElementById('ClosedDateGroup');
+
+            if (status === 'Closed') {
+                group.style.opacity = "1";
+                dateInput.required = true;
+        
+                // Simple UI Warning
+                dateInput.addEventListener('change', function() {
+                    if (dueDateInput.value && this.value < dueDateInput.value) {
+                        alert("Warning: Closed Date should not be before the Due Date.");
+                        this.classList.add("is-invalid");
+                    } else {
+                        this.classList.remove("is-invalid");
+                    }
+                });
+
+                if (!dateInput.value) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+            } else {
+                dateInput.value = "";
+                dateInput.required = false;
+                group.style.opacity = "0.5";
+            }
+        }
     </script>
 }

@@ -1,9 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using oop_s2_2_mvc_78286.Data;
-using FoodSafety.Domain.Models;
+﻿using FoodSafety.Domain.Models;
 using FoodSafety.Domain.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {

@@ -1,7 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using FoodSafety.Domain.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using FoodSafety.Domain.Models;
-using FoodSafety.Domain.Models.ViewModels;
 
 
 public class ApplicationDbContext : IdentityDbContext

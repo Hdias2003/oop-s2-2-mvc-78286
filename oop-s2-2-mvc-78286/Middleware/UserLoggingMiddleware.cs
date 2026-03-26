@@ -1,4 +1,5 @@
 ﻿namespace oop_s2_2_mvc_78286.Middleware;
+
 using Serilog.Context;
 
 public class UserLoggingMiddleware

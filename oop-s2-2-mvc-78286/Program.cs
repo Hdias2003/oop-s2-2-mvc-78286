@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using oop_s2_2_mvc_78286.Data;
 using oop_s2_2_mvc_78286.Middleware;
 using Serilog;
 using Serilog.Events;
-using Newtonsoft.Json;
 
 // Set a safe default MaxDepth to mitigate DoS while upgrading transitive usages.
 // Add this before any JSON deserialize/serialize calls.
@@ -38,7 +38,8 @@ try
     builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
     // 4. IDENTITY & ROLE CONFIGURATION
-    builder.Services.AddDefaultIdentity<IdentityUser>(options => {
+    builder.Services.AddDefaultIdentity<IdentityUser>(options =>
+    {
         options.SignIn.RequireConfirmedAccount = false;
         options.Password.RequireDigit = false; // Easier for testing your seeded users
         options.Password.RequiredLength = 6;

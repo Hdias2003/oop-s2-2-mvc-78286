@@ -1,15 +1,9 @@
 ﻿using FoodSafety.Domain.Models;
-using FoodSafety.Domain.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization; // Required for Role-Based Access 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using oop_s2_2_mvc_78286.Data;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {
@@ -57,7 +51,8 @@ namespace oop_s2_2_mvc_78286.Controllers
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
 
             // We format the Display Text so the JavaScript in the View can parse it
-            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new
+            {
                 Id = i.Id,
                 DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
             }), "Id", "DisplayText");
@@ -80,7 +75,8 @@ namespace oop_s2_2_mvc_78286.Controllers
 
             // Populate dropdown with the same formatted display text used by Create
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
-            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new
+            {
                 Id = i.Id,
                 DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
             }), "Id", "DisplayText", followUp.InspectionId);
@@ -124,7 +120,8 @@ namespace oop_s2_2_mvc_78286.Controllers
 
             // If we reach here, re-populate the dropdown with the same formatting
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
-            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new
+            {
                 Id = i.Id,
                 DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
             }), "Id", "DisplayText", followUp.InspectionId);
@@ -180,14 +177,15 @@ namespace oop_s2_2_mvc_78286.Controllers
             // --- IMPORTANT: RE-POPULATE DROPDOWN WITH PREMISES ---
             // If validation fails, we must provide the same formatted text used in GET Edit
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
-            ViewBag.InspectionId = new SelectList(inspections.Select(i => new {
+            ViewBag.InspectionId = new SelectList(inspections.Select(i => new
+            {
                 Id = i.Id,
                 DisplayText = $"ID: {i.Id} - {i.Premises.Name} ({i.InspectionDate.ToShortDateString()})"
             }), "Id", "DisplayText", followUp.InspectionId);
 
             return View(followUp);
         }
-        
+
 
         // GET: FollowUps/Delete/5
         public async Task<IActionResult> Delete(int? id)

@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
+﻿using FoodSafety.Domain.Models;
 using Microsoft.AspNetCore.Authorization; // Required for security
-using FoodSafety.Domain.Models;
-using FoodSafety.Domain.Models.ViewModels;
-using oop_s2_2_mvc_78286.Data;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {

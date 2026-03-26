@@ -1,5 +1,4 @@
 using FoodSafety.Domain.Models;
-using FoodSafety.Domain.Models.ViewModels; // Ensure this points to your actual ViewModel namespace
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
