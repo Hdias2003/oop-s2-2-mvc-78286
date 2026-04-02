@@ -1,6 +1,6 @@
 ﻿namespace FoodSafety.Domain.Models
 {
-    // Standardized role names to be used in Authorize attributes
+    // Standardized role names 
     public static class UserRoles
     {
         public const string Admin = "Admin";

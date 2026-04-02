@@ -1,7 +1,7 @@
 ﻿@model IEnumerable<FoodSafety.Domain.Models.Inspection>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Inspections";
 }
 
 <h1>Index</h1>
@@ -32,6 +32,9 @@
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.Premises)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Premises.Id)
             </th>
             <th></th>
         </tr>

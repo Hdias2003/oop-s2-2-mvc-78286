@@ -1,4 +1,4 @@
-﻿using FoodSafety.Domain.Models; // Change to your actual namespace
+﻿using FoodSafety.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,32 +6,33 @@ namespace FoodSafety.Web.Data
 {
     public static class DataInitializer
     {
-        // Change the context type to match your ApplicationDbContext
+        // This method automatically fills the database with starting data if it's currently empty
         public static async Task SeedAsync(ApplicationDbContext context, UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager)
         {
-            // --- CRITICAL RULE: Don't duplicate data if it exists ---
+            // SAFETY CHECK: If there are already businesses or users in the database, stop here.
+            // We don't want to accidentally create double copies of everything.
             if (context.Premises.Any() || userManager.Users.Any()) return;
 
-            // ==========================================================
-            // -> 2 users, 1 as admin, 1 as inspector
-            // ==========================================================
+            // --- STEP 1: CREATE USER ROLES ---
+            // We need "Admin" and "Inspector" categories to control what users can do.
             var adminRole = "Admin";
             var inspectorRole = "Inspector";
 
             if (!await roleManager.RoleExistsAsync(adminRole)) await roleManager.CreateAsync(new IdentityRole(adminRole));
             if (!await roleManager.RoleExistsAsync(inspectorRole)) await roleManager.CreateAsync(new IdentityRole(inspectorRole));
 
-            // Create ADMIN user
+            // --- STEP 2: CREATE A TEST ADMIN ACCOUNT ---
             var adminEmail = "admin@council.com";
             if (await userManager.FindByEmailAsync(adminEmail) == null)
             {
                 var user = new IdentityUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
-                // Using the specific password
+                // Create the user with a simple default password
                 var result = await userManager.CreateAsync(user, "Password123!");
+                // If the user was created successfully, give them the Admin role
                 if (result.Succeeded) await userManager.AddToRoleAsync(user, adminRole);
             }
 
-            // Create INSPECTOR user
+            // --- STEP 3: CREATE A TEST INSPECTOR ACCOUNT ---
             var inspectorEmail = "inspector@council.com";
             if (await userManager.FindByEmailAsync(inspectorEmail) == null)
             {
@@ -40,9 +41,7 @@ namespace FoodSafety.Web.Data
                 if (result.Succeeded) await userManager.AddToRoleAsync(user, inspectorRole);
             }
 
-            // ==========================================================
-            // -> 12 premises across 3 towns
-            // ==========================================================
+            // --- STEP 4: CREATE 12 FAKE BUSINESSES (PREMISES) ---
             var towns = new[] { "Dublin", "Cork", "Galway" };
             var premisesList = new List<Premises>();
 
@@ -52,27 +51,25 @@ namespace FoodSafety.Web.Data
                 {
                     Name = $"Premise {i} - Food Safety Ltd.",
                     Address = $"{i * 10} Food Avenue",
-                    // Spread across 3 towns
+                    // Rotate through our list of 3 towns (Dublin, then Cork, then Galway, then repeat)
                     Town = towns[(i - 1) % towns.Length],
-                    // Set a diverse RiskRating
-                    RiskRating = (RiskLevel)((i % 3) + 1) // High, Med, Low
+                    // Assign a mix of High, Medium, and Low risk levels
+                    RiskRating = (RiskLevel)((i % 3) + 1)
                 });
             }
-            context.Premises.AddRange(premisesList);
-            await context.SaveChangesAsync();
+            context.Premises.AddRange(premisesList); // Prepare to add the whole list
+            await context.SaveChangesAsync(); // Push all 12 businesses into the database
 
-            // ==========================================================
-            // -> 25 inspections across different dates
-            // ==========================================================
+            // --- STEP 5: CREATE 25 FAKE INSPECTION RECORDS ---
             var inspectionsList = new List<Inspection>();
-            var random = new Random();
+            var random = new Random(); // Used to generate random scores and dates
 
             for (int i = 1; i <= 25; i++)
             {
-                // Ensure every premise is inspected, with some getting multiple visits
+                // Assign each inspection to one of our 12 businesses
                 var associatedPremise = premisesList[(i - 1) % premisesList.Count];
 
-                // Inspections must have historical dates
+                // Pick a random date from the last 100 days
                 var inspectionDate = DateTime.Now.AddDays(-(random.Next(1, 100)));
 
                 inspectionsList.Add(new Inspection
@@ -80,61 +77,56 @@ namespace FoodSafety.Web.Data
                     PremisesId = associatedPremise.Id,
                     InspectionDate = inspectionDate,
                     Score = random.Next(50, 100),
-                    // High scores pass, low scores fail
+                    // If the random number is high, they pass; otherwise, they fail
                     Outcome = (random.Next(50, 100) > 70) ? "Pass" : "Fail",
-                    Notes = $"Routine inspection #{i} for {associatedPremise.Name}. Score was good but hygiene must improve."
+                    Notes = $"Routine inspection #{i} for {associatedPremise.Name}."
                 });
             }
             context.Inspections.AddRange(inspectionsList);
             await context.SaveChangesAsync();
 
-            // ==========================================================
-            // -> 10 follow-ups (some overdue, some closed)
-            // ==========================================================
+            // --- STEP 6: CREATE 10 FOLLOW-UP TASKS ---
             var followUpsList = new List<FollowUp>();
 
-            // Identify inspections that failed - these need follow-ups
+            // Only create follow-ups for the inspections that "Failed"
             var failedInspections = inspectionsList.Where(i => i.Outcome == "Fail").ToList();
 
-            if (!failedInspections.Any()) return; // Rare, but check for safety
+            if (!failedInspections.Any()) return;
 
             for (int i = 0; i < 10; i++)
             {
-                // Ensure we link to unique failed inspections first
                 var associatedInspection = failedInspections[i % failedInspections.Count];
 
-                // --- Scenario 1: OVERDUE follow-ups ---
-                if (i < 4) // 4 overdue items
+                // SCENARIO A: Make 4 tasks that are "OVERDUE" (Due date is in the past)
+                if (i < 4)
                 {
                     followUpsList.Add(new FollowUp
                     {
                         InspectionId = associatedInspection.Id,
                         Status = "Open",
-                        // Due date is in the past, triggering overdue logic
-                        DueDate = DateTime.Now.AddDays(-(i + 1)),
+                        DueDate = DateTime.Now.AddDays(-(i + 1)), // Date is yesterday or older
                         ClosedDate = null
                     });
                 }
-                // --- Scenario 2: CLOSED follow-ups ---
-                else if (i < 7) // 3 closed items
+                // SCENARIO B: Make 3 tasks that are "FINISHED" (Status is Closed)
+                else if (i < 7)
                 {
                     followUpsList.Add(new FollowUp
                     {
                         InspectionId = associatedInspection.Id,
                         Status = "Closed",
                         DueDate = DateTime.Now.AddDays(-(i + 10)),
-                        // Set ClosedDate for audit
-                        ClosedDate = DateTime.Now.AddDays(-(i + 5))
+                        ClosedDate = DateTime.Now.AddDays(-(i + 5)) // Record when it was finished
                     });
                 }
-                // --- Scenario 3: Upcoming follow-ups ---
-                else // 3 open but not yet due
+                // SCENARIO C: Make 3 tasks that are "UPCOMING" (Not due yet)
+                else
                 {
                     followUpsList.Add(new FollowUp
                     {
                         InspectionId = associatedInspection.Id,
                         Status = "Open",
-                        DueDate = DateTime.Now.AddDays((i + 1)),
+                        DueDate = DateTime.Now.AddDays((i + 1)), // Due in the future
                         ClosedDate = null
                     });
                 }

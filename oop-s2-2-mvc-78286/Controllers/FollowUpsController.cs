@@ -1,5 +1,5 @@
 ﻿using FoodSafety.Domain.Models;
-using Microsoft.AspNetCore.Authorization; // Required for Role-Based Access 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -7,50 +7,54 @@ using System.Diagnostics;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {
-    // Restricts the entire controller to Admin and Inspector roles by default
+    // Security: Only Admins and Inspectors are allowed to use this controller by default
     [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector)]
     public class FollowUpsController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly ILogger<FollowUpsController> _logger; // Injected for Serilog 
+        private readonly ILogger<FollowUpsController> _logger;
 
+        // Setup: Connect the controller to the database and the activity logger
         public FollowUpsController(ApplicationDbContext context, ILogger<FollowUpsController> logger)
         {
             _context = context;
             _logger = logger;
         }
 
-        // GET: FollowUps
-        // Allows Viewers to see the list of follow-up tasks
+        // --- LIST PAGE ---
+        // Shows all follow-up tasks. Viewers are also allowed to see this list.
         [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
         public async Task<IActionResult> Index()
         {
+            // Get the list of follow-ups and include the inspection details for each
             var applicationDbContext = _context.FollowUps.Include(f => f.Inspection);
             return View(await applicationDbContext.ToListAsync());
         }
 
-        // GET: FollowUps/Details/5
+        // --- DETAILS PAGE ---
+        // Shows info for one specific follow-up task based on its ID
         [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null) return NotFound();
+            if (id == null) return NotFound(); // If no ID was provided, show 404 error
 
             var followUp = await _context.FollowUps
                 .Include(f => f.Inspection)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
-            if (followUp == null) return NotFound();
+            if (followUp == null) return NotFound(); // If the ID doesn't exist in the DB, show 404
 
             return View(followUp);
         }
 
-        // GET: FollowUps/Create
+        // --- CREATE PAGE (GET) ---
+        // Opens the blank form to create a new follow-up
         public IActionResult Create()
         {
-            // Load Inspections including Premises so we can show the name in the dropdown
+            // Get all inspections so we can put them in a dropdown menu
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
 
-            // We format the Display Text so the JavaScript in the View can parse it
+            // Format the text for the dropdown so it shows the ID, Business Name, and Date
             ViewBag.InspectionId = new SelectList(inspections.Select(i => new
             {
                 Id = i.Id,
@@ -60,8 +64,8 @@ namespace oop_s2_2_mvc_78286.Controllers
             return View();
         }
 
-        // --- NEW: GET: FollowUps/Edit/5
-        // Added because the Edit view requires a GET action that loads the model and populates the dropdown.
+        // --- EDIT PAGE (GET) ---
+        // Opens the form to edit an existing follow-up
         [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
         public async Task<IActionResult> Edit(int? id)
         {
@@ -73,7 +77,7 @@ namespace oop_s2_2_mvc_78286.Controllers
 
             if (followUp == null) return NotFound();
 
-            // Populate dropdown with the same formatted display text used by Create
+            // Prepare the dropdown menu for the edit screen
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
             ViewBag.InspectionId = new SelectList(inspections.Select(i => new
             {
@@ -84,41 +88,39 @@ namespace oop_s2_2_mvc_78286.Controllers
             return View(followUp);
         }
 
-        // POST: FollowUps/Create
+        // --- CREATE (POST) ---
+        // Saves the new follow-up to the database after the user clicks 'Submit'
         [HttpPost]
-        [ValidateAntiForgeryToken]
+        [ValidateAntiForgeryToken] // Security check to prevent form tampering
         public async Task<IActionResult> Create([Bind("Id,InspectionId,DueDate,Status,ClosedDate")] FollowUp followUp)
         {
             try
             {
-                if (ModelState.IsValid)
+                if (ModelState.IsValid) // Check if the user filled in the form correctly
                 {
                     var inspection = await _context.Inspections.FindAsync(followUp.InspectionId);
 
-                    // STRICT SPEC: Due Date must be after Inspection Date
+                    // Rule: You can't set a due date that happened BEFORE the inspection date
                     if (inspection != null && followUp.DueDate <= inspection.InspectionDate)
                     {
-                        _logger.LogWarning("Validation Failure: DueDate {Due} is not after InspectionDate {Insp}",
-                            followUp.DueDate, inspection.InspectionDate);
+                        _logger.LogWarning("The user tried to set a due date before the inspection date.");
                         ModelState.AddModelError("DueDate", $"Due Date must be after the Inspection Date ({inspection.InspectionDate.ToShortDateString()})");
                     }
                     else
                     {
-                        _context.Add(followUp);
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("Follow-up created for Inspection {Id}", followUp.InspectionId);
-                        return RedirectToAction(nameof(Index));
+                        _context.Add(followUp); // Add to database
+                        await _context.SaveChangesAsync(); // Save changes
+                        return RedirectToAction(nameof(Index)); // Go back to the list
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating follow-up");
-                // REQUIREMENT: Redirect to Global Error Page
+                _logger.LogError(ex, "Something went wrong while saving the new follow-up");
                 return RedirectToAction("Error", "Home");
             }
 
-            // If we reach here, re-populate the dropdown with the same formatting
+            // If there was an error, reload the dropdown so the user can try again
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
             ViewBag.InspectionId = new SelectList(inspections.Select(i => new
             {
@@ -129,7 +131,8 @@ namespace oop_s2_2_mvc_78286.Controllers
             return View(followUp);
         }
 
-        // POST: FollowUps/Edit/5
+        // --- EDIT (POST) ---
+        // Saves changes to an existing follow-up
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,InspectionId,DueDate,Status,ClosedDate")] FollowUp followUp)
@@ -138,35 +141,32 @@ namespace oop_s2_2_mvc_78286.Controllers
 
             try
             {
-                // 1. Validate the model (this triggers IValidatableObject logic)
                 if (ModelState.IsValid)
                 {
-                    // 2. Fetch inspection to verify business rules
                     var inspection = await _context.Inspections.FindAsync(followUp.InspectionId);
 
+                    // Re-check the date rule during editing
                     if (inspection != null && followUp.DueDate <= inspection.InspectionDate)
                     {
                         ModelState.AddModelError("DueDate", $"Due Date must be after the Inspection Date ({inspection.InspectionDate.ToShortDateString()})");
                     }
                     else
                     {
-                        _context.Update(followUp);
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("Follow-up {Id} updated successfully.", followUp.Id);
+                        _context.Update(followUp); // Update the record
+                        await _context.SaveChangesAsync(); // Save changes
                         return RedirectToAction(nameof(Index));
                     }
                 }
             }
             catch (DbUpdateConcurrencyException)
             {
+                // This happens if two people try to edit the same record at the exact same time
                 if (!FollowUpExists(followUp.Id)) return NotFound();
                 else throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating follow-up {Id}", id);
-                // Instead of RedirectToAction, return the Error view directly WITH a new model
-                // This prevents the NullReferenceException in Error.cshtml
                 return View("Error", new ErrorViewModel
                 {
                     RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
@@ -174,8 +174,7 @@ namespace oop_s2_2_mvc_78286.Controllers
                 });
             }
 
-            // --- IMPORTANT: RE-POPULATE DROPDOWN WITH PREMISES ---
-            // If validation fails, we must provide the same formatted text used in GET Edit
+            // Reload dropdown if we had to return to the form due to a mistake
             var inspections = _context.Inspections.Include(i => i.Premises).ToList();
             ViewBag.InspectionId = new SelectList(inspections.Select(i => new
             {
@@ -187,7 +186,8 @@ namespace oop_s2_2_mvc_78286.Controllers
         }
 
 
-        // GET: FollowUps/Delete/5
+        // --- DELETE PAGE (GET) ---
+        // Shows a confirmation page before deleting
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -201,7 +201,8 @@ namespace oop_s2_2_mvc_78286.Controllers
             return View(followUp);
         }
 
-        // POST: FollowUps/Delete/5
+        // --- DELETE (POST) ---
+        // Actually removes the item from the database
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -211,12 +212,13 @@ namespace oop_s2_2_mvc_78286.Controllers
             {
                 _context.FollowUps.Remove(followUp);
                 await _context.SaveChangesAsync();
-                _logger.LogWarning("Follow-up {Id} was deleted by user.", id);
+                _logger.LogWarning("A follow-up record was deleted.");
             }
 
             return RedirectToAction(nameof(Index));
         }
 
+        // Helper Method: A quick way to check if a specific Follow-up ID exists in the DB
         private bool FollowUpExists(int id)
         {
             return _context.FollowUps.Any(e => e.Id == id);

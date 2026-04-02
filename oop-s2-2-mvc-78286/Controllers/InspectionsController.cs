@@ -6,92 +6,97 @@ using Microsoft.EntityFrameworkCore;
 
 namespace oop_s2_2_mvc_78286.Controllers
 {
-    // Restricts the entire controller to Admin and Inspector roles by default
+    // Security: Only Admins and Inspectors can use these pages by default
     [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector)]
     public class InspectionsController : Controller
     {
         private readonly ILogger<InspectionsController> _logger;
         private readonly ApplicationDbContext _context;
 
+        // Setup: Link the controller to our database and the activity logger
         public InspectionsController(ILogger<InspectionsController> logger, ApplicationDbContext context)
         {
             _logger = logger;
             _context = context;
         }
 
-        // GET: Inspections
-        // Overrides class-level restriction to allow Viewers to see the list
+        // --- LIST PAGE ---
+        // Shows all inspections. We allow 'Viewers' to see this list too.
         [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Inspector + "," + UserRoles.Viewer)]
         public async Task<IActionResult> Index()
         {
-            // Includes Premises data for the view as per scaffolded logic
+            // Get the list of inspections and make sure to include the Business (Premises) name
             var applicationDbContext = _context.Inspections.Include(i => i.Premises);
             return View(await applicationDbContext.ToListAsync());
         }
 
+        // --- DETAILS PAGE ---
+        // Shows the history of all inspections for one specific business
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            // Use .Include to pull the related inspection records from the database
+            // Look up the business (Premises) and pull all its linked inspection records
             var premises = await _context.Premises
                 .Include(p => p.Inspections)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (premises == null) return NotFound();
 
-            // LOG 11: Trace - Viewing premises history
+            // Record a note in the log that someone is looking at this business history
             _logger.LogInformation("Viewing details and inspection history for Premises ID {Id}", id);
 
             return View(premises);
         }
 
-        // GET: Inspections/Create
+        // --- CREATE PAGE (GET) ---
+        // Opens the form to log a new inspection
         public IActionResult Create()
         {
-            // Populate dropdown for Premises selection
+            // Create a dropdown list so the user can pick which business was inspected
             ViewData["PremisesId"] = new SelectList(_context.Premises, "Id", "Name");
             return View();
         }
 
-        // POST: Inspections/Create
+        // --- CREATE (POST) ---
+        // Saves the new inspection details when the user clicks 'Save'
         [HttpPost]
-        [ValidateAntiForgeryToken]
+        [ValidateAntiForgeryToken] // Security check to ensure the form is legitimate
         public async Task<IActionResult> Create([Bind("Id,PremisesId,InspectionDate,Score,Outcome,Notes")] Inspection inspection)
         {
             try
             {
+                // Check if all required fields were filled out correctly
                 if (ModelState.IsValid)
                 {
-                    // Business Rule Warning: Log if date is in the future
+                    // Logic check: Log a warning if the date entered is in the future
                     if (inspection.InspectionDate > DateTime.Now)
                     {
-                        _logger.LogWarning("Validation Issue: Inspection date {Date} is in the future for Premises {Id}",
-                            inspection.InspectionDate, inspection.PremisesId);
+                        _logger.LogWarning("An inspection was recorded with a future date.");
                     }
 
-                    _context.Add(inspection);
-                    await _context.SaveChangesAsync();
+                    _context.Add(inspection); // Add the new record
+                    await _context.SaveChangesAsync(); // Save to the database
 
-                    // Structured Information Log
-                    _logger.LogInformation("Inspection created. ID: {InspectionId}, Premises: {PremisesId}",
-                        inspection.Id, inspection.PremisesId);
+                    _logger.LogInformation("New inspection record created successfully.");
 
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Index)); // Go back to the list
                 }
             }
             catch (Exception ex)
             {
-                // Error Log with exception details
-                _logger.LogError(ex, "Error occurred while creating inspection for Premises {Id}", inspection.PremisesId);
+                // If there's a database error, log the details and show the Error page
+                _logger.LogError(ex, "Error occurred while creating inspection.");
                 return View("Error");
             }
 
+            // If the form had errors, reload the business dropdown so the user can fix it
             ViewData["PremisesId"] = new SelectList(_context.Premises, "Id", "Name", inspection.PremisesId);
             return View(inspection);
         }
 
-        // GET: Inspections/Edit/5
+        // --- EDIT PAGE (GET) ---
+        // Loads the data for an existing inspection so the user can change it
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -99,11 +104,13 @@ namespace oop_s2_2_mvc_78286.Controllers
             var inspection = await _context.Inspections.FindAsync(id);
             if (inspection == null) return NotFound();
 
+            // Prepare the dropdown list with the current business selected
             ViewData["PremisesId"] = new SelectList(_context.Premises, "Id", "Name", inspection.PremisesId);
             return View(inspection);
         }
 
-        // POST: Inspections/Edit/5
+        // --- EDIT (POST) ---
+        // Updates the database with the new information provided by the user
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,PremisesId,InspectionDate,Score,Outcome,Notes")] Inspection inspection)
@@ -114,13 +121,14 @@ namespace oop_s2_2_mvc_78286.Controllers
             {
                 try
                 {
-                    _context.Update(inspection);
-                    await _context.SaveChangesAsync();
+                    _context.Update(inspection); // Apply the changes
+                    await _context.SaveChangesAsync(); // Save to database
 
-                    _logger.LogInformation("Inspection updated. ID: {InspectionId}", inspection.Id);
+                    _logger.LogInformation("Inspection ID {Id} was updated.", inspection.Id);
                 }
                 catch (DbUpdateConcurrencyException)
                 {
+                    // Happens if someone else deleted or changed the record while you were editing it
                     if (!InspectionExists(inspection.Id)) return NotFound();
                     else throw;
                 }
@@ -135,7 +143,8 @@ namespace oop_s2_2_mvc_78286.Controllers
             return View(inspection);
         }
 
-        // GET: Inspections/Delete/5
+        // --- DELETE PAGE (GET) ---
+        // Asks the user "Are you sure?" before deleting
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -149,7 +158,8 @@ namespace oop_s2_2_mvc_78286.Controllers
             return View(inspection);
         }
 
-        // POST: Inspections/Delete/5
+        // --- DELETE (POST) ---
+        // Actually removes the inspection from the database
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -159,11 +169,12 @@ namespace oop_s2_2_mvc_78286.Controllers
             {
                 _context.Inspections.Remove(inspection);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Inspection deleted. ID: {Id}", id);
+                _logger.LogInformation("Inspection ID {Id} was deleted.", id);
             }
             return RedirectToAction(nameof(Index));
         }
 
+        // Helper: Checks the database to see if a specific inspection ID still exists
         private bool InspectionExists(int id)
         {
             return _context.Inspections.Any(e => e.Id == id);
