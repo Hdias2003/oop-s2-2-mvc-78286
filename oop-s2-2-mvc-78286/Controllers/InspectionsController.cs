@@ -32,23 +32,20 @@ namespace oop_s2_2_mvc_78286.Controllers
 
         // --- DETAILS PAGE ---
         // Shows the history of all inspections for one specific business
+        // Inside InspectionsController.cs
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            // Look up the business (Premises) and pull all its linked inspection records
-            var premises = await _context.Premises
-                .Include(p => p.Inspections)
+            // The .Include is the "Fix" here!
+            var inspection = await _context.Inspections
+                .Include(i => i.Premises)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
-            if (premises == null) return NotFound();
+            if (inspection == null) return NotFound();
 
-            // Record a note in the log that someone is looking at this business history
-            _logger.LogInformation("Viewing details and inspection history for Premises ID {Id}", id);
-
-            return View(premises);
+            return View(inspection);
         }
-
         // --- CREATE PAGE (GET) ---
         // Opens the form to log a new inspection
         public IActionResult Create()

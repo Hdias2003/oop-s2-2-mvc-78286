@@ -42,7 +42,7 @@ try
     builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = false;
-        options.Password.RequireDigit = false; // Easier for testing your seeded users
+        options.Password.RequireDigit = false; 
         options.Password.RequiredLength = 6;
     })
         .AddRoles<IdentityRole>()
